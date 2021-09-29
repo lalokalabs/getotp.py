@@ -6,6 +6,8 @@ authors = ["Surya <surya@xoxzo.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
+phonenumbers = "^8.12.33"
+requests = "^2.26.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
