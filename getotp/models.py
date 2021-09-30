@@ -19,6 +19,7 @@ class GetOTP(models.Model):
     callback_time = models.DateTimeField(null=True, blank=True)
     creation_time = models.DateTimeField(default=timezone.now, blank=True)
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name="getotp", blank=True, null=True)
+    login = models.BooleanField(default=False)
 
 class UserDetails(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name="user_details")

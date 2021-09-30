@@ -31,28 +31,32 @@ def user_verification(user=None, user_details=None, login=False):
         raise ValueError("Required variables missing from settings.py")
 
     parsed_success = urlparse(end_success_redirect)
-    parsed_success = parsed_success._replace(path=reverse("signup-success"))
-    success_link = urlunparse(parsed_success)
-    parsed_callback = parsed_success._replace(path=reverse("signup-callback"))
-    callback_link = urlunparse(parsed_callback)
-
-    client = GetOTPClient(
-        key, token, success_redirect_url=success_link, fail_redirect_url=fail_redirect,
-    )
-
-    # Send API request
-    resp = client.send_otp(
-        channels,
-        callback_url=callback_link,
-        phone_sms=user_details.phone_number,
-        phone_voice=user_details.phone_number,
-        email=user.email,
-    )
 
     kwargs = {}
     if not login:
         if user is None or user_details is None:
             raise ValueError("Invalid parameters. user and user_details cant be None")
+
+        parsed_success = parsed_success._replace(path=reverse("verification-success"))
+        success_link = urlunparse(parsed_success)
+        parsed_callback = parsed_success._replace(path=reverse("signup-callback"))
+        callback_link = urlunparse(parsed_callback)
+
+        client = GetOTPClient(
+            key,
+            token,
+            success_redirect_url=success_link,
+            fail_redirect_url=fail_redirect,
+        )
+
+        # Send API request
+        resp = client.send_otp(
+            channels,
+            callback_url=callback_link,
+            phone_sms=user_details.phone_number,
+            phone_voice=user_details.phone_number,
+            email=user.email,
+        )
 
         # Set user inactive till they verify OTP
         user.is_active = False
@@ -62,6 +66,20 @@ def user_verification(user=None, user_details=None, login=False):
         user_details.otp_id = resp.otp_id
         user_details.save()
         kwargs.update({"user": user})
+    else:
+        parsed_success = parsed_success._replace(path=reverse("verification-success"))
+        success_link = urlunparse(parsed_success)
+        parsed_callback = parsed_success._replace(path=reverse("login-callback"))
+        callback_link = urlunparse(parsed_callback)
+
+        client = GetOTPClient(
+            key,
+            token,
+            success_redirect_url=success_link,
+            fail_redirect_url=fail_redirect,
+        )
+
+        resp = client.send_otp(channels, callback_url=callback_link)
 
     kwargs.update(
         {"otp_id": resp.otp_id, "link": resp.link, "otp_secret": resp.otp_secret,}
@@ -69,12 +87,16 @@ def user_verification(user=None, user_details=None, login=False):
 
     if resp.errors is None:
         try:
-            GetOTP.objects.create(**kwargs)
+            getotp = GetOTP.objects.create(**kwargs)
         except Exception as e:
             logger.error(f"Exception occurred creating GetOTP object - {e}")
             return HttpResponse(status=500)
         else:
-            logger.info(f"Sign up initiated with otp_id: {resp.otp_id}")
+            if login:
+                getotp.login = True
+                getotp.save()
+
+            logger.info(f"Initiated OTP with otp_id: {resp.otp_id}")
             return redirect(resp.link)
     else:
         raise ConnectionError(f"API returned these errors - {resp.errors}")
