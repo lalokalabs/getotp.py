@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2021 XoxzoEU Inc
 
-__author__ = "Surya Banerjee <surya@xoxzo.com>"
+__author__ = "Surya Banerjee <surya@lalokalabs.com>"
 
 
 import phonenumbers

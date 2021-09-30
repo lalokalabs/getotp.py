@@ -7,7 +7,7 @@ __author__ = "Surya Banerjee <surya@xoxzo.com>"
 
 import requests
 
-VERIFY_API_URL = "http://otp.dev/api/verify/"
+VERIFY_API_URL = "http://localhost:9000/api/verify/"
 VERIFY_API_PARAMS = [
     "success_redirect_url",
     "fail_redirect_url",
