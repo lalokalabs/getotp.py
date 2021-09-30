@@ -20,7 +20,7 @@ from getotp.models import GetOTP
 logger = logging.getLogger(__name__)
 
 
-def user_verification(user, user_details=None):
+def user_verification(user=None, user_details=None, login=False):
     try:
         key = settings.GETOTP_API_KEY
         token = settings.GETOTP_AUTH_TOKEN
@@ -36,28 +36,40 @@ def user_verification(user, user_details=None):
     parsed_callback = parsed_success._replace(path=reverse("signup-callback"))
     callback_link = urlunparse(parsed_callback)
 
-    client = GetOTPClient(key, token, success_link, fail_redirect)
+    client = GetOTPClient(
+        key, token, success_redirect_url=success_link, fail_redirect_url=fail_redirect,
+    )
+
+    # Send API request
     resp = client.send_otp(
         channels,
         callback_url=callback_link,
         phone_sms=user_details.phone_number,
         phone_voice=user_details.phone_number,
-        email=user.email
+        email=user.email,
     )
 
-    # Set user inactive till they verify OTP
-    user.is_active = False
-    user.save()
+    kwargs = {}
+    if not login:
+        if user is None or user_details is None:
+            raise ValueError("Invalid parameters. user and user_details cant be None")
 
-    user_details.user = user
-    user_details.otp_id = resp.otp_id
-    user_details.save()
+        # Set user inactive till they verify OTP
+        user.is_active = False
+        user.save()
+
+        user_details.user = user
+        user_details.otp_id = resp.otp_id
+        user_details.save()
+        kwargs.update({"user": user})
+
+    kwargs.update(
+        {"otp_id": resp.otp_id, "link": resp.link, "otp_secret": resp.otp_secret,}
+    )
 
     if resp.errors is None:
         try:
-            GetOTP.objects.create(
-                otp_id=resp.otp_id, link=resp.link, otp_secret=resp.otp_secret,
-            )
+            GetOTP.objects.create(**kwargs)
         except Exception as e:
             logger.error(f"Exception occurred creating GetOTP object - {e}")
             return HttpResponse(status=500)
@@ -78,3 +90,4 @@ def confirm_user_verification(otp_id):
             return getotp.user
 
     return False
+

@@ -50,7 +50,7 @@ class GetOTPClient:
         if kwargs.get("fail_redirect_url") is not None:
             fail_redirect_url = kwargs.get("fail_redirect_url")
         elif self.fail_redirect_url is not None:
-            fail_redirect_url = self.success_redirect_url
+            fail_redirect_url = self.fail_redirect_url
 
         if success_redirect_url is None:
             raise ValueError("Should atleast have the success_redirect_url")
