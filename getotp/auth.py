@@ -6,20 +6,21 @@
 __author__ = "Surya Banerjee <surya@xoxzo.com>"
 
 import logging
-from urllib. parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.contrib.auth import login
 
 from getotp.client import GetOTPClient
-from getotp.models import SignUp
+from getotp.models import GetOTP
 
 logger = logging.getLogger(__name__)
 
 
-def user_verification(user, user_detail=None):
+def user_verification(user, user_details=None):
     try:
         key = settings.GETOTP_API_KEY
         token = settings.GETOTP_AUTH_TOKEN
@@ -36,23 +37,44 @@ def user_verification(user, user_detail=None):
     callback_link = urlunparse(parsed_callback)
 
     client = GetOTPClient(key, token, success_link, fail_redirect)
-    resp = client.send_otp(channels, callback_url=callback_link)
+    resp = client.send_otp(
+        channels,
+        callback_url=callback_link,
+        phone_sms=user_details.phone_number,
+        phone_voice=user_details.phone_number,
+        email=user.email
+    )
 
-    import pdb; pdb.set_trace()
+    # Set user inactive till they verify OTP
+    user.is_active = False
+    user.save()
+
+    user_details.user = user
+    user_details.otp_id = resp.otp_id
+    user_details.save()
 
     if resp.errors is None:
         try:
-            SignUp.objects.create(
+            GetOTP.objects.create(
                 otp_id=resp.otp_id, link=resp.link, otp_secret=resp.otp_secret,
             )
         except Exception as e:
-            logger.error(f"Exception occurred creating signup object - {e}")
+            logger.error(f"Exception occurred creating GetOTP object - {e}")
             return HttpResponse(status=500)
         else:
-            logger.info(f"SignUp initiated with otp_id: {resp.otp_id}")
+            logger.info(f"Sign up initiated with otp_id: {resp.otp_id}")
             return redirect(resp.link)
     else:
         raise ConnectionError(f"API returned these errors - {resp.errors}")
 
-def confirm_verification(otp_id):
-    import pdb; pdb.set_trace()
+
+def confirm_user_verification(otp_id):
+    try:
+        getotp = GetOTP.objects.get(otp_id=otp_id)
+    except Exception as e:
+        logger.error(f"Exception occured when trying to fetch otp_id: {otp_id} - {e}")
+    else:
+        if getotp.status == "verified":
+            return getotp.user
+
+    return False

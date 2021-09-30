@@ -109,7 +109,7 @@ class UserDetailForm(forms.ModelForm):
         if getattr(settings, "GETOTP_CUSTOM_USER", False):
             qs = User.objects.filter(**{get_fields(field="phone_number"): phone_number}, is_active=True)
         else:
-            qs = UserDetails.objects.filter(phone_number=phone_number)
+            qs = UserDetails.objects.filter(phone_number=phone_number, user__is_active=True)
 
         if qs.count() > 0:
             raise forms.ValidationError("phone_number invalid or already in use")
