@@ -9,6 +9,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from django.http import HttpResponse
 from django.contrib.auth import login
@@ -65,7 +66,7 @@ def signup_callback(
 
     return HttpResponse(status=200)
 
-
+@transaction.atomic
 def save_getotp(getotp, user_details):
     user = user_details.user
     getotp.user = user
