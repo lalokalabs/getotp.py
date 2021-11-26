@@ -18,10 +18,10 @@ class GetOTP(models.Model):
     status = models.CharField(max_length=200, default="initiated")
     callback_time = models.DateTimeField(null=True, blank=True)
     creation_time = models.DateTimeField(default=timezone.now, blank=True)
-    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name="getotp", blank=True, null=True)
-    login = models.BooleanField(default=False)
+    email = models.CharField(max_length=255, default="")
+    phone_sms = models.CharField(max_length=255, default="")
+    phone_voice = models.CharField(max_length=255, default="")
+    metadata = models.CharField(max_length=255, default="")
 
-class UserDetails(models.Model):
-    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name="user_details")
-    phone_number = models.CharField(max_length=15, blank=False, null=True)
-    otp_id = models.CharField(max_length=100, unique=True)
+    def __str__(self):
+        return f"{otp_id} {status} email: {email} phone_sms: {phone_sms} phone_voice: {phone_voice}"

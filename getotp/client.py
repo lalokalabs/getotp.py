@@ -97,6 +97,7 @@ class GetOTPClient:
 
 class GetOTPResponse:
     def __init__(self, errors=None, **kwargs):
+        self.ok = errors is None
         self.errors = errors
         self.__dict__.update(
             {
