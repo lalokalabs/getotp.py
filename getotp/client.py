@@ -5,6 +5,13 @@
 
 __author__ = "Surya Banerjee <surya@xoxzo.com>"
 
+import logging
+
+from django.conf import settings
+from django.http import HttpResponse
+
+from getotp.models import GetOTP
+
 import requests
 
 VERIFY_API_URL = "https://otp.dev/api/verify/"
@@ -22,6 +29,7 @@ VERIFY_API_PARAMS = [
 VERIFY_API_RESP = ["otp_id", "link", "otp_secret"]
 VERIFY_API_DETAIL = ["otp_id", "status", "channels", "creation_time"]
 
+logger = logging.getLogger(__name__)
 
 class GetOTPClient:
     def __init__(
@@ -112,3 +120,42 @@ class GetOTPResponse:
             return "Invalid parameters. Check errors."
         else:
             return self.otp_id
+
+def send_otp(channels, success_redirect_url, fail_redirect_url,
+             callback_url=None, email="", phone_sms="", phone_voice="",
+             api_sid=settings.GETOTP_API_KEY, api_token=settings.GETOTP_AUTH_TOKEN):
+    kwargs = {}
+    client = GetOTPClient(
+        api_sid,
+        api_token,
+        success_redirect_url=success_redirect_url,
+        fail_redirect_url=fail_redirect_url
+    )
+
+    resp = client.send_otp(
+        channels,
+        callback_url=callback_url,
+        phone_sms=phone_sms,
+        phone_voice=phone_voice,
+        email=email,
+    )
+
+    if resp.errors is not None:
+        return resp
+
+    kwargs.update(
+        {"otp_id": resp.otp_id, "link": resp.link, "otp_secret": resp.otp_secret,}
+    )
+    kwargs["email"] = email
+    kwargs["phone_voice"] = phone_voice
+    kwargs["phone_sms"] = phone_sms
+    try:
+        getotp = GetOTP.objects.create(**kwargs)
+    except Exception as e:
+        logger.error(f"Exception occurred creating GetOTP object - {e}")
+        return HttpResponse(status=500)
+
+    logger.info(f"Initiated OTP with otp_id: {resp.otp_id}")
+    return resp
+
+    raise ConnectionError(f"API returned these errors - {resp.errors}")

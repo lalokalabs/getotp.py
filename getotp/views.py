@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
 
 from getotp.models import GetOTP
-from getotp.auth import send_otp
+from getotp.client import send_otp
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,14 @@ User = get_user_model()
 
 def login_start(request):
     if request.method == "POST":
-        otp = send_otp("email", "https://boring.xoxzo.site", "https://boring.xoxzo.site")
+        otp = send_otp("email",
+                success_redirect_url=settings.GETOTP_LOGIN_SUCCESS_REDIRECT,
+                fail_redirect_url=settings.GETOTP_LOGIN_FAIL_REDIRECT,
+                callback_url=settings.GETOTP_CALLBACK,
+            )
         if otp.ok:
             return redirect(otp.link)
+        print(otp.errors)
     return render(request, "getotp/login/start.html")
 
 def login_complete(request):
@@ -45,7 +50,7 @@ def login_complete(request):
 
 
 @csrf_exempt
-def login_callback(request,):
+def otp_callback(request):
     payload = json.loads(request.body)
     otp_id = payload["otp_id"]
     otp_secret = payload["otp_secret"]
@@ -57,9 +62,14 @@ def login_callback(request,):
             logger.error(
                 f"Exception occured when trying to fetch user_details with otp_id: {otp_id} - {e}"
             )
+        else:
+            getotp.email = payload.get("email", "")
+            getotp.phone_sms = payload.get("phone_sms", "")
+            getotp.phone_voice = payload.get("phone_voice", "")
+            getotp.metadata = payload["metadata"]
+            getotp.status = "verified"
+            getotp.callback_time = timezone.now()
+            getotp.save()
+            logger.info(f"Saved verified OTP otp_id: {otp_id} email: {getotp.email} phone_sms: {getotp.phone_sms} phone_voice: {getotp.phone_voice}")
 
-        getotp.status = "verified"
-
-    getotp.callback_time = timezone.now()
-    getotp.save()
     return HttpResponse(status=200)
