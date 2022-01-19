@@ -1,0 +1,8 @@
+
+
+{% block "content" %}
+<form action="{% url 'login-start' %}" method="post">
+{% csrf_token %}
+<input type="submit" value="Login with GETOTP" />
+</form>
+{% endblock %}
