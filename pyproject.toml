@@ -8,9 +8,12 @@ authors = ["Surya <surya@xoxzo.com>"]
 python = "^3.6"
 phonenumbers = "^8.12.33"
 requests = "^2.26.0"
+Django = "<4.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
+httmock = "^1.4.0"
+pytest-djangoapp = "^0.15.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

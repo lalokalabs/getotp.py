@@ -5,6 +5,7 @@ from getotp.views import (
     otp_callback,
 )
 
+app_name = "getotp"
 urlpatterns = [
     path("login/start/", login_start, name="login-start"),
     path("login/complete/", login_complete, name="login-complete"),
