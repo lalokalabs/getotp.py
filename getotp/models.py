@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 
-class GetOTP(models.Model):
+class OTP(models.Model):
     otp_id = models.CharField(max_length=100, unique=True)
     link = models.URLField()
     otp_secret = models.CharField(max_length=100)

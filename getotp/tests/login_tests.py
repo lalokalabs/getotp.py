@@ -7,7 +7,7 @@ from django.test import Client
 from django.urls import reverse
 from httmock import urlmatch, HTTMock
 
-from getotp.models import GetOTP
+from getotp.models import OTP
 
 def test_login_ok(user, request_client, settings):
     url = reverse("test:login-start")
@@ -54,7 +54,7 @@ def test_login_ok(user, request_client, settings):
     resp = client.post(url, json.dumps(otp_callback_payload), content_type="application/json")
     assert resp.status_code == 200
 
-    otp = GetOTP.objects.get(otp_id=otp_callback_payload["otp_id"])
+    otp = OTP.objects.get(otp_id=otp_callback_payload["otp_id"])
     assert otp.status == "verified"
     assert otp.email == otp_callback_payload["email"]
     user.email = otp.email

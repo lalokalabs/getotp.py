@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
-from getotp.models import GetOTP
+from getotp.models import OTP
 from getotp.client import send_otp
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def otp_callback(request):
 
     if payload["auth_status"] == "verified":
         try:
-            getotp = GetOTP.objects.get(otp_id=otp_id, otp_secret=otp_secret)
+            getotp = OTP.objects.get(otp_id=otp_id, otp_secret=otp_secret)
         except Exception as e:
             logger.error(
                 f"Exception occured when trying to fetch user_details with otp_id: {otp_id} - {e}"

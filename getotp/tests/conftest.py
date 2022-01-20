@@ -7,7 +7,7 @@ pytest_plugins = configure_djangoapp_plugin({
         "GETOTP_AUTH_TOKEN": "",
     },
     extend_AUTHENTICATION_BACKENDS = [
-        "getotp.auth.GetOTPBackend",
+        "getotp.auth.OTPBackend",
     ],
     extend_INSTALLED_APPS=[
         'django.contrib.sessions',
