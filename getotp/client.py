@@ -154,6 +154,8 @@ def send_otp(channels, success_redirect_url, fail_redirect_url,
     except Exception as e:
         logger.error(f"Exception occurred creating GetOTP object - {e}")
         return HttpResponse(status=500)
+    else:
+        resp.otp = getotp
 
     logger.info(f"Initiated OTP with otp_id: {resp.otp_id}")
     return resp
