@@ -15,6 +15,7 @@ from django.http import HttpResponse
 from django.contrib.auth import login, authenticate
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
 from getotp.models import GetOTP
@@ -23,6 +24,10 @@ from getotp.client import send_otp
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+@login_required
+def index(request):
+    return HttpResponse(f"Logged in as {request.user.email}")
 
 def login_start(request):
     if request.method == "POST":
