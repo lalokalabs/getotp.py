@@ -43,6 +43,3 @@ urlpatterns = [
 Run `migrate`.
 
 The login button should be available under https://yoursite.com/getotp/login/start/.
-
-Design Document:
-https://docs.google.com/document/d/1hjvc07wU_8oo5Y6_G0in-txrvQ__SobwMuyFjHAVxiI/edit#
