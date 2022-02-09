@@ -12,113 +12,69 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.http import HttpResponse
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
-from getotp.auth import confirm_user_verification
-from getotp.models import GetOTP, UserDetails
+from getotp.models import OTP
+from getotp.client import send_otp
 
 logger = logging.getLogger(__name__)
 
+User = get_user_model()
 
-def verification_success(request):
-    otp_id = request.GET.get("otp_id", False)
-    if otp_id:
-        user = confirm_user_verification(otp_id)
-        if user:
-            login(request, user)
-            return redirect(settings.GETOTP_SUCCESS_REDIRECT)
+@login_required
+def index(request):
+    return HttpResponse(f"Logged in as {request.user.email}")
 
-    return HttpResponse(status=404)
+def login_start(request):
+    if request.method == "POST":
+        otp = send_otp("email",
+                success_redirect_url=settings.GETOTP_LOGIN_SUCCESS_REDIRECT,
+                fail_redirect_url=settings.GETOTP_LOGIN_FAIL_REDIRECT,
+                callback_url=settings.GETOTP_CALLBACK,
+            )
+        if otp.ok:
+            return redirect(otp.link)
+        print(otp.errors)
+    return render(request, "getotp/login/start.html")
 
+def login_complete(request):
+    otp_id = request.GET.get("otp_id", None)
+    if otp_id is None:
+        return redirect("/")
 
-@csrf_exempt
-def signup_callback(
-    request,
-):  # Works currently with phone_number. Code needs to be adapted to use email too.
-    payload = json.loads(request.body)
-    otp_id = payload["otp_id"]
+    user = authenticate(request, username=otp_id)
+    if user is None:
+        return redirect("/")
 
-    try:
-        getotp = GetOTP.objects.get(otp_id=otp_id)
-    except Exception as e:
-        logger.error(f"Exception occured when trying to fetch otp_id: {otp_id} - {e}")
-
-    if payload["otp_secret"] == getotp.otp_secret:
-        if payload["auth_status"] == "verified":
-            if not getattr(settings, "GETOTP_CUSTOM_USER", False):
-                try:
-                    user_details = UserDetails.objects.get(otp_id=otp_id)
-                except Exception as e:
-                    logger.error(
-                        f"Exception occured when trying to fetch otp_id: {otp_id} - {e}"
-                    )
-                else:
-                    if user_details.phone_number == payload["phone_number"]:
-                        save_getotp(getotp, user_details)
-            else:
-                save_getotp(getotp, user_details)
-
-        getotp.callback_time = timezone.now()
-        getotp.save()
-
-    return HttpResponse(status=200)
-
-@transaction.atomic
-def save_getotp(getotp, user_details):
-    user = user_details.user
-    getotp.user = user
-    getotp.status = "verified"
-    getotp.save()
-    user.is_active = True
-    user.save()
+    login(request, user)
+    return redirect("/")
 
 
 @csrf_exempt
-def login_callback(
-    request,
-):  # Works currently with phone_number. Code needs to be adapted to use email too.
+def otp_callback(request):
     payload = json.loads(request.body)
     otp_id = payload["otp_id"]
-    User = get_user_model()
+    otp_secret = payload["otp_secret"]
 
     if payload["auth_status"] == "verified":
-        if getattr(settings, "GETOTP_CUSTOM_USER", False):
-            try:
-                user = User.objects.get(
-                    **{get_fields(field="phone_number"): payload["phone_number"]},
-                    is_active=True,
-                )
-            except User.DoesNotExist:
-                pass
-            except Exception as e:
-                logger.error(
-                    f"Exception occured when trying to fetch user with otp_id: {otp_id} - {e}"
-                )
-
-            if user.getotp.get(otp_id=otp_id).exists():
-                getotp = user.getotp.get(otp_id=otp_id)
-                getotp.status = "verified"
-                getotp.user = user
-
+        try:
+            getotp = OTP.objects.get(otp_id=otp_id, otp_secret=otp_secret)
+        except Exception as e:
+            logger.error(
+                f"Exception occured when trying to fetch user_details with otp_id: {otp_id} - {e}"
+            )
         else:
-            try:
-                getotp = GetOTP.objects.get(otp_id=otp_id)
-            except Exception as e:
-                logger.error(
-                    f"Exception occured when trying to fetch user_details with otp_id: {otp_id} - {e}"
-                )
-
+            getotp.email = payload.get("email", "")
+            getotp.phone_sms = payload.get("phone_sms", "")
+            getotp.phone_voice = payload.get("phone_voice", "")
+            getotp.metadata = payload["metadata"]
             getotp.status = "verified"
-            if UserDetails.objects.filter(phone_number=payload["phone_number"], user__is_active=True
-            ).exists():
-                getotp.user = UserDetails.objects.get(
-                    phone_number=payload["phone_number"],
-                    user__is_active=True
-                ).user
+            getotp.callback_time = timezone.now()
+            getotp.save()
+            logger.info(f"Saved verified OTP otp_id: {otp_id} email: {getotp.email} phone_sms: {getotp.phone_sms} phone_voice: {getotp.phone_voice}")
 
-    getotp.callback_time = timezone.now()
-    getotp.save()
     return HttpResponse(status=200)

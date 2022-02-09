@@ -5,6 +5,13 @@
 
 __author__ = "Surya Banerjee <surya@xoxzo.com>"
 
+import logging
+
+from django.conf import settings
+from django.http import HttpResponse
+
+from getotp.models import OTP
+
 import requests
 
 VERIFY_API_URL = "https://otp.dev/api/verify/"
@@ -22,8 +29,9 @@ VERIFY_API_PARAMS = [
 VERIFY_API_RESP = ["otp_id", "link", "otp_secret"]
 VERIFY_API_DETAIL = ["otp_id", "status", "channels", "creation_time"]
 
+logger = logging.getLogger(__name__)
 
-class GetOTPClient:
+class OTPClient:
     def __init__(
         self, sid, token, success_redirect_url=None, fail_redirect_url=None, **kwargs
     ):
@@ -75,11 +83,11 @@ class GetOTPClient:
             raise e
         else:
             if resp.status_code == 201:
-                return GetOTPResponse(**resp.json())
+                return OTPResponse(**resp.json())
             else:
-                return GetOTPResponse(errors=resp.json())
+                return OTPResponse(errors=resp.json())
 
-    def getotp_status(self, otp_id):
+    def otp_status(self, otp_id):
         try:
             resp = requests.get(
                 f"{self.verify_api_url}{otp_id}/", auth=(self.sid, self.token)
@@ -88,15 +96,16 @@ class GetOTPClient:
             raise e
 
         if resp.status_code == 200:
-            return GetOTPResponse(**resp.json())
+            return OTPResponse(**resp.json())
         elif resp.status_code == 404:
-            return GetOTPResponse(errors={"otp_id": "Not found"})
+            return OTPResponse(errors={"otp_id": "Not found"})
         else:
-            return GetOTPResponse(errors=resp.json())
+            return OTPResponse(errors=resp.json())
 
 
-class GetOTPResponse:
+class OTPResponse:
     def __init__(self, errors=None, **kwargs):
+        self.ok = errors is None
         self.errors = errors
         self.__dict__.update(
             {
@@ -111,3 +120,44 @@ class GetOTPResponse:
             return "Invalid parameters. Check errors."
         else:
             return self.otp_id
+
+def send_otp(channels, success_redirect_url, fail_redirect_url,
+             callback_url=None, email="", phone_sms="", phone_voice="",
+             api_sid=settings.GETOTP_API_KEY, api_token=settings.GETOTP_AUTH_TOKEN):
+    kwargs = {}
+    client = OTPClient(
+        api_sid,
+        api_token,
+        success_redirect_url=success_redirect_url,
+        fail_redirect_url=fail_redirect_url
+    )
+
+    resp = client.send_otp(
+        channels,
+        callback_url=callback_url,
+        phone_sms=phone_sms,
+        phone_voice=phone_voice,
+        email=email,
+    )
+
+    if resp.errors is not None:
+        return resp
+
+    kwargs.update(
+        {"otp_id": resp.otp_id, "link": resp.link, "otp_secret": resp.otp_secret,}
+    )
+    kwargs["email"] = email
+    kwargs["phone_voice"] = phone_voice
+    kwargs["phone_sms"] = phone_sms
+    try:
+        getotp = OTP.objects.create(**kwargs)
+    except Exception as e:
+        logger.error(f"Exception occurred creating OTP object - {e}")
+        return HttpResponse(status=500)
+    else:
+        resp.otp = getotp
+
+    logger.info(f"Initiated OTP with otp_id: {resp.otp_id}")
+    return resp
+
+    raise ConnectionError(f"API returned these errors - {resp.errors}")
