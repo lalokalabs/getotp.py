@@ -24,4 +24,4 @@ class OTP(models.Model):
     metadata = models.CharField(max_length=255, default="")
 
     def __str__(self):
-        return f"{otp_id} {status} email: {email} phone_sms: {phone_sms} phone_voice: {phone_voice}"
+        return f"{self.otp_id} {self.status} email: {self.email} phone_sms: {self.phone_sms} phone_voice: {self.phone_voice}"
