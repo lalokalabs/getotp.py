@@ -26,6 +26,7 @@ VERIFY_API_PARAMS = [
     "hide",
     "metadata",
     "embed",
+    "lang",
 ]
 VERIFY_API_RESP = ["otp_id", "link", "otp_secret"]
 VERIFY_API_DETAIL = ["otp_id", "status", "channels", "creation_time"]
@@ -122,7 +123,7 @@ class OTPResponse:
         else:
             return self.otp_id
 
-def send_otp(channels, success_redirect_url, fail_redirect_url,
+def send_otp(channels, success_redirect_url, fail_redirect_url, lang="en",
              callback_url=None, email="", phone_sms="", phone_voice="", metadata="",
              api_sid=settings.GETOTP_API_KEY, api_token=settings.GETOTP_AUTH_TOKEN):
     kwargs = {}
@@ -139,6 +140,7 @@ def send_otp(channels, success_redirect_url, fail_redirect_url,
         phone_sms=phone_sms,
         phone_voice=phone_voice,
         email=email,
+        lang=lang,
         metadata=metadata,
     )
 
